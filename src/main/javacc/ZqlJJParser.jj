@@ -147,6 +147,7 @@ TOKEN: /* SQL Keywords. prefixed with K_ to avoid name clashes */
 |   <K_QUIT:"QUIT">
 |   <K_READ:"READ">
 |   <K_REAL:"REAL">
+|   <K_REGEXP_LIKE:"REGEXP_LIKE">
 |   <K_ROLLBACK:"ROLLBACK">
 |   <K_ROW:"ROW">
 |   <K_SELECT:"SELECT">
@@ -754,7 +755,7 @@ ZExpression ExistsClause():
 // SQLRelationalExpression ::=
 //    ( [PRIOR] SQLSimpleExpression | SQLExpressionList )
 //    ( SQLRelationalOperatorExpression
-//      | SQLInClause | SQLBetweenClause | SQLLikeClause | IsNullClause )?
+//      | SQLInClause | SQLBetweenClause | SQLLikeClause | SQLRegexpLikeClause | IsNullClause )?
 ZExp SQLRelationalExpression():
 {
   ZExp e1, eleft;
@@ -779,11 +780,12 @@ ZExp SQLRelationalExpression():
       } )
   ) //Closes parenthese opened before LOOKAHEAD
 
-    /* Lookahead(2) is required because of NOT IN,NOT BETWEEN and NOT LIKE */
+    /* Lookahead(2) is required because of NOT IN,NOT BETWEEN, NOT LIKE and NOT REGEXP_LIKE */
    ( eright = SQLRelationalOperatorExpression()
     |  LOOKAHEAD(2) (eright = SQLInClause())
     |  LOOKAHEAD(2) (eright = SQLBetweenClause())
     |  LOOKAHEAD(2) (eright = SQLLikeClause())
+    |  LOOKAHEAD(2) (eright = SQLRegexpLikeClause())
     |  eright = IsNullClause()
    )?
 
@@ -895,6 +897,21 @@ ZExpression SQLLikeClause():
   "LIKE" eright = SQLSimpleExpressionOrPreparedCol() {
     if(not) e = new ZExpression("NOT LIKE", eright);
     else e = new ZExpression("LIKE", eright);
+    return e;
+  }
+}
+
+ZExpression SQLRegexpLikeClause():
+{
+  ZExp eright;
+  ZExpression e;
+  boolean not = false;
+}
+{
+  ["NOT" { not = true; }]
+  "REGEXP_LIKE" eright = SQLSimpleExpressionOrPreparedCol() {
+    if(not) e = new ZExpression("NOT REGEXP_LIKE", eright);
+    else e = new ZExpression("REGEXP_LIKE", eright);
     return e;
   }
 }
