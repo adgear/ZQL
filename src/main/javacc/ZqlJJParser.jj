@@ -148,6 +148,8 @@ TOKEN: /* SQL Keywords. prefixed with K_ to avoid name clashes */
 |   <K_READ:"READ">
 |   <K_REAL:"REAL">
 |   <K_REGEXP_LIKE:"REGEXP_LIKE">
+|   <K_CONTAINS_ONE_OF:"CONTAINS_ONE_OF">
+|   <K_CONTAINS_ALL_OF:"CONTAINS_ALL_OF">
 |   <K_ROLLBACK:"ROLLBACK">
 |   <K_ROW:"ROW">
 |   <K_SELECT:"SELECT">
@@ -780,12 +782,14 @@ ZExp SQLRelationalExpression():
       } )
   ) //Closes parenthese opened before LOOKAHEAD
 
-    /* Lookahead(2) is required because of NOT IN,NOT BETWEEN, NOT LIKE and NOT REGEXP_LIKE */
+    /* Lookahead(2) is required because of NOT IN, NOT BETWEEN, NOT LIKE, NOT REGEXP_LIKE, NOT CONTAINS_ONE_OF and NOT CONTAINS_ALL_OF*/
    ( eright = SQLRelationalOperatorExpression()
     |  LOOKAHEAD(2) (eright = SQLInClause())
     |  LOOKAHEAD(2) (eright = SQLBetweenClause())
     |  LOOKAHEAD(2) (eright = SQLLikeClause())
     |  LOOKAHEAD(2) (eright = SQLRegexpLikeClause())
+    |  LOOKAHEAD(2) (eright = SQLContainsOneOfClause())
+    |  LOOKAHEAD(2) (eright = SQLContainsAllOfClause())
     |  eright = IsNullClause()
    )?
 
@@ -912,6 +916,36 @@ ZExpression SQLRegexpLikeClause():
   "REGEXP_LIKE" eright = SQLSimpleExpressionOrPreparedCol() {
     if(not) e = new ZExpression("NOT REGEXP_LIKE", eright);
     else e = new ZExpression("REGEXP_LIKE", eright);
+    return e;
+  }
+}
+
+ZExpression SQLContainsOneOfClause():
+{
+  ZExp eright;
+  ZExpression e;
+  boolean not = false;
+}
+{
+  ["NOT" { not = true; }]
+  "CONTAINS_ONE_OF" eright = SQLSimpleExpressionOrPreparedCol() {
+    if(not) e = new ZExpression("NOT CONTAINS_ONE_OF", eright);
+    else e = new ZExpression("CONTAINS_ONE_OF", eright);
+    return e;
+  }
+}
+
+ZExpression SQLContainsAllOfClause():
+{
+  ZExp eright;
+  ZExpression e;
+  boolean not = false;
+}
+{
+  ["NOT" { not = true; }]
+  "CONTAINS_ALL_OF" eright = SQLSimpleExpressionOrPreparedCol() {
+    if(not) e = new ZExpression("NOT CONTAINS_ALL_OF", eright);
+    else e = new ZExpression("CONTAINS_ALL_OF", eright);
     return e;
   }
 }
