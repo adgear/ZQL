@@ -1,17 +1,13 @@
 # instance:       concourse.int.adgear.com
-# pipeline_name:  ZQL
+# pipeline_name:  zql
 # team:           data
 ---
 resource_types:
-  - name: git-tags-resource
-    type: docker-image
-    source:
-      repository: adgear/git-tags-resource
-      tag: 1.1.2
   - name: pull-request
     type: docker-image
     source:
       repository: teliaoss/github-pr-resource
+
   - name: commit-status
     type: docker-image
     source:
@@ -24,75 +20,82 @@ resources:
     source:
       uri: git@github.com:adgear/common-tasks.git
       private_key: ((adgear-concourse.ssh_private_key))
-  - name: ZQL-pr
+
+  - name: zql-pr
     type: pull-request
     source:
-      repository: adgear/ZQL
-      access_token: ((adgear-concourse.access_token))
-  - name: ZQL-tags
-    type: git-tags-resource
+      repository: adgear/zql
+      access_token: "((adgear-concourse.access_token))"
+    check_every: 1h
+    webhook_token: "((webhook_token))"
+
+  - name: zql-tags
+    type: git
     source:
       private_key: ((adgear-concourse.ssh_private_key))
-      repository_name: adgear/ZQL
-      uri: git@github.com:adgear/ZQL.git
+      repository_name: adgear/zql
+      uri: git@github.com:adgear/zql.git
       tag_filter: "*.*.*"
-  - name: ZQL-commit-status
+
+  - name: zql-commit-status
     type: commit-status
     source:
-      repository:   adgear/ZQL
+      repository:   adgear/zql
       access_token: ((adgear-concourse.access_token))
       context: concourse/ci
 
 jobs:
   - name: build-pr
     plan:
-      - aggregate:
-        - get: common-tasks-repo
-        - get: ZQL-pr
-          trigger: true
-          version: every
-      - put: ZQL-pr
+      - in_parallel:
+          steps:
+            - get: common-tasks-repo
+            - get: zql-pr
+              trigger: true
+              version: every
+      - put: zql-pr
         params:
-          path:   ZQL-pr
+          path:   zql-pr
           status: pending
       - task: mvn-build
         file: common-tasks-repo/mvn-build/latest/mvn-build.yml
         input_mapping:
-          source: ZQL-pr
+          source: zql-pr
         params: { EXPORT_VOLUMES: false }
         on_success:
-          put: ZQL-pr
+          put: zql-pr
           params:
-            path:   ZQL-pr
+            path:   zql-pr
             status: success
         on_failure:
-          put: ZQL-pr
+          put: zql-pr
           params:
-            path:   ZQL-pr
+            path:   zql-pr
             status: failure
 
   - name: build-tags
     plan:
-      - aggregate:
-        - get: common-tasks-repo
-        - get: ZQL-tags
-          trigger: true
-          version: every
+      - in_parallel:
+          steps:
+            - get: common-tasks-repo
+            - get: zql-tags
+              trigger: true
+              version: every
       - do:
         - task: mvn-build
           file: common-tasks-repo/mvn-build/latest/mvn-build.yml
           input_mapping:
-            source: ZQL-tags
+            source: zql-tags
           params:
             IS_RELEASE: true
             EXPORT_VOLUMES: false
         on_success:
-          put: ZQL-commit-status
+          put: zql-commit-status
           params:
             state:  success
-            commit: ZQL-tags
+            commit: zql-tags
         on_failure:
-          put: ZQL-commit-status
+          put: zql-commit-status
           params:
             state:  failure
-            commit: ZQL-tags
+            commit: zql-tags
